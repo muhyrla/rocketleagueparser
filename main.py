@@ -8,7 +8,7 @@ from search_itemwithcategory_id import searchitemid_withcategory
 from urllib.parse import urlencode
 import telebot
 
-key = '5762344619:AAFu_ADKKaEHbNxXTvaIwJqDzagrjmlCGuQ'
+key = ''
 bot = telebot.TeleBot(key)
 CATEGORIES = {"Wheels", "Antennas", "Banners", "Bodies", "Decals", "Audio", "Goal", "Misc", "Paint", "Boosts", "Toppers", "Trails", "Wheels"}
 
