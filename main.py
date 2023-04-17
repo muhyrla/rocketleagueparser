@@ -1,5 +1,3 @@
-from typing import List, Any
-
 import requests
 from bs4 import BeautifulSoup
 from search_item_id import searchitemid
@@ -34,36 +32,50 @@ def gettrade(tdata):
     return items_has, items_want, username, time, rank
 
 
-def create_answer(trs, item_name, cr):
+def create_answer(trs, item_name, cr, type):
     preanswer = []
     for trade in trs:
-        h, w, user, t, r = gettrade(trade) # Получить имеющиеся, хочеющиеся, юзера ранг и время
-        for i in range(0, len(h)):
+        url = trade.find("a", string="Trade details").get('href')
+        h, w, user, t, r = gettrade(trade)  # Получить имеющиеся, хочеющиеся, юзера ранг и время
+        for i in range(0, len(h)-1):
             if len(h) != len(w):
                 break
-
             item_name_has = h[i].find('div', {'class': 'rlg-item__text'}).text.replace("\n", "")
             item_name_wants = w[i].find('div', {'class': 'rlg-item__text'}).text.replace("\n", "")
             try:
-                item_color_has = h[i].find('div', {'class': 'rlg-item__paint'}).text.replace('\n', '').replace(' ', '')
+                item_color_wants = w[i].find('div', {'class': 'rlg-item__paint'}).get('data-name')
             except AttributeError:
-                item_color_has = 'None'
+                item_color_wants = False
             try:
-                item_color_wants = h[i].find('div', {'class': 'rlg-item__paint'}).text.replace('\n', '').replace(' ', '')
+                item_color_has = h[i].find('div', {'class': 'rlg-item__paint'}).get('data-name')
             except AttributeError:
-                item_color_wants = 'None'
-            if item_name_has == item_name or item_name_wants == item_name:
-                if (cr == 'Any') or (cr == item_color_wants):
-                    print(cr, item_color_has, item_color_wants)
-                    try:
-                        item_quant_has = h[i].find('div', {'class': 'rlg-item__quantity'}).text.replace("\n",  "")
-                    except AttributeError:
-                        item_quant_has = 1
-                    try:
-                        item_quant_wants = w[i].find('div', {'class': 'rlg-item__quantity'}).text.replace("\n",  "")
-                    except AttributeError:
-                        item_quant_wants = 1
-                    preanswer.append([item_name_has, str(item_quant_has), item_name_wants, str(item_quant_wants), user, r, t])
+                item_color_has = False
+            if type == 'sell':
+                if item_name_wants == item_name:
+                    if (item_color_wants == cr) or (cr == 'None' and not item_color_wants) or (cr == 'Any' and item_color_wants):
+                            #   print(item_color_wants, user, url)
+                        try:
+                            item_quant_has = h[i].find('div', {'class': 'rlg-item__quantity'}).text.replace("\n",  "")
+                        except AttributeError:
+                            item_quant_has = 1
+                        try:
+                            item_quant_wants = w[i].find('div', {'class': 'rlg-item__quantity'}).text.replace("\n",  "")
+                        except AttributeError:
+                            item_quant_wants = 1
+                        preanswer.append([item_name_has, int(item_quant_has), item_name_wants, int(item_quant_wants), user, r, t])
+            else:
+                if item_name_has == item_name:
+                    if (item_color_has == cr) or (cr == 'None' and not item_color_has) or (cr == 'Any' and item_color_has):
+                            #   print(item_color_has, user, url)
+                        try:
+                            item_quant_has = h[i].find('div', {'class': 'rlg-item__quantity'}).text.replace("\n",  "")
+                        except AttributeError:
+                            item_quant_has = 1
+                        try:
+                            item_quant_wants = w[i].find('div', {'class': 'rlg-item__quantity'}).text.replace("\n",  "")
+                        except AttributeError:
+                            item_quant_wants = 1
+                        preanswer.append([item_name_has, int(item_quant_has), item_name_wants, int(item_quant_wants), user, r, t])
     return preanswer
 
 
@@ -144,22 +156,22 @@ def text_handler(message):
             url_tobuy = None
 
         print(message.text, '\n', url_forsale, '\n', url_tobuy)
-        if url_forsale != None:
+        if url_forsale:
             data = requests.get(url_forsale)
             soup = BeautifulSoup(data.text, 'html.parser')
             trades = soup.find_all('div', {'class': 'rlg-trade'})
-            ans = create_answer(trades, item, color)
+            ans = create_answer(trades, item, color, 'buy')
             r_s = sorted(ans, key=lambda x: x[3], reverse=False)
             reply = ''
             for i in range(0, len(r_s)):
                 reply = f"{reply}{r_s[i][0]}:{r_s[i][1]} = {r_s[i][2]}:{r_s[i][3]} | ({r_s[i][5]}){r_s[i][4]} | {r_s[i][6]}\n"
             bot.send_message(message.chat.id, f"Предложения на продажу:\n{reply[:4069]}")
 
-        if url_tobuy != None:
+        if url_tobuy:
             data = requests.get(url_tobuy)
             soup = BeautifulSoup(data.text, 'html.parser')
             trades = soup.find_all('div', {'class': 'rlg-trade'})
-            ans = create_answer(trades, item, color)
+            ans = create_answer(trades, item, color, 'sell')
             r_s = sorted(ans, key=lambda x: x[1], reverse=True)
             reply = ''
             for i in range(0, len(r_s)):
